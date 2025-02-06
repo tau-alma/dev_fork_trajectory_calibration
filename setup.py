@@ -15,7 +15,7 @@ setuptools.setup(
     description='A package for motion-based sensor to sensor calibration',
     long_description=readme,
     long_description_content_type='text/markdown',
-    url='https://github.com/tau-alma/trajectory_calibration',
+    url='https://github.com/tau-alma/dev_fork_trajectory_calibration',
     license='MIT',
     packages=setuptools.find_packages(),
     install_requires=[
@@ -23,6 +23,7 @@ setuptools.setup(
         'matplotlib',
         'scipy',
         'casadi',
+        'pyquaternion'
     ],
     classifiers=[
         'Programming Language :: Python :: 3',
