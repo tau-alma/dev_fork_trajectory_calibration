@@ -299,7 +299,9 @@ class Trajectory(object):
             - `A`, Pure rotation based thresholding
             - `B`, Pure translation based thresholding
             - `C`, Translation and Rotation based thresholding
-            - `D`, Custom cost function based thresholding
+            - `D`, Translation and Rotation based thresholding
+            - `E`, Custom based thresholding, the cost function can be fed as a parameter
+
             
         
         Returns
@@ -310,7 +312,7 @@ class Trajectory(object):
         Raises
         ------
         ValueError
-            Raised if `method` not in {`A', `B', `C', `D'}
+            Raised if `method` not in {`A', `B', `C', `D', `E'}
         """
         Tr = self.__class__()
 
@@ -395,7 +397,6 @@ class Trajectory(object):
                     if np.linalg.norm(rel_T[:3, -1].reshape(-1, 1)) > d_treshold:
                         break
                     rot = Rotation.from_matrix(rel_T[:3, :3])
-                    #angular_dist = frobenious_form(rot)
                     angular_dist = angular_distance(rot)
                     dist = np.linalg.norm(rel_T[:3, -1].reshape(-1, 1))
                     if angular_dist > rad_threshold:
@@ -403,13 +404,69 @@ class Trajectory(object):
                         Tr.p.append(rel_T[:3, -1].reshape(-1, 1))
                         Tr.t.append(self.t[r])
                         Tr.rel_t.append(self.t[k])
-
                         break
 
-                    #distance_matrix[k, r] = angular_dist +  0.5 * dist
                 k += 1
 
         elif method == "D":
+            def frobenious_form(Rot_mat):
+                return np.linalg.norm(Rot_mat, ord="fro")
+            
+            def quat_magnitude(quat):
+                return quat.magnitude()
+
+            def quat_dist(quat):
+                from pyquaternion import Quaternion
+                q0 = Quaternion(np.array([0.0, 0.0, 0.0, 1.0]))
+                q1 = Quaternion(quat.as_quat())
+                angular_distance = Quaternion.absolute_distance(q0, q1)
+                return angular_distance
+            
+            def angular_distance(quat):
+                """
+                Computes the angular distance between two quaternions.
+
+                Params:
+                    q0: The first quaternion (instance of Quaternion)
+                    q1: The second quaternion (instance of Quaternion)
+
+                Returns:
+                    The angular distance in radians.
+                """
+                # Ensure q0 and q1 are normalized
+                from pyquaternion import Quaternion
+                q0 = Quaternion(np.array([0.0, 0.0, 0.0, 1.0]))
+                q1 = Quaternion(quat.as_quat())
+                dotProd = q0.x*q1.x + q0.y*q1.y + q0.z*q1.z + q0.w*q1.w
+                angle = 2.0 * np.arccos(max(0.0, min(abs(dotProd), 1.0)))
+                return angle        
+
+
+            while k < len(self) - 1:
+
+                T0inv = as_transition_matrix(self.R[k], self.p[k], inv=True)
+                for r in range(k + 1, len(self)):
+                    rel_T = T0inv @ as_transition_matrix(self.R[r], self.p[r], inv=False)
+                    rot = Rotation.from_matrix(rel_T[:3, :3])
+                    #angular_dist = frobenious_form(rot)
+                    angular_dist = angular_distance(rot)
+                    if angular_dist > rad_threshold:
+                        Tr.R.append(rel_T[:3, :3])
+                        Tr.p.append(rel_T[:3, -1].reshape(-1, 1))
+                        Tr.t.append(self.t[r])
+                        Tr.rel_t.append(self.t[k])
+                        break
+
+                    elif np.linalg.norm(rel_T[:3, -1].reshape(-1, 1)) > d_treshold:
+                        Tr.R.append(rel_T[:3, :3])
+                        Tr.p.append(rel_T[:3, -1].reshape(-1, 1))
+                        Tr.t.append(self.t[r])
+                        Tr.rel_t.append(self.t[k])
+                        break
+
+                k += 1
+
+        elif method == "E":
             if cost_func == None:
                 raise ValueError("User needs to feed a custom cost function as a variable")
 
