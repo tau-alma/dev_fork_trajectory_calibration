@@ -3,7 +3,6 @@
 """
 
 import numpy as np
-from sklearn.cluster import KMeans
 from scipy.spatial.transform import Rotation
 
 from calibration.utils.tools import (
